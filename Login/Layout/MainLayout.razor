@@ -1,0 +1,171 @@
+﻿@using System.Text.Json
+@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+
+@if (Logueado == "false")
+{
+    <PageTitle>Iniciar Sesión</PageTitle>
+    <div class="modal d-block">
+        <div style="width: 35rem; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);">
+            <div class="modal-content">
+
+                <div class="card-header" style="background-color: #0000FF; color: #ffffff;">
+                    <h3><strong> Iniciar Sesión</strong></h3>
+                </div>
+
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <label class="fw-bold">Usuario</label>
+                        <input class="form-control" @bind="user" placeholder="Ingrese el Usuario" />
+
+                        <label class="fw-bold">Contraseña</label>
+                        <input class="form-control" @bind="pass" placeholder="Ingrese la Contraseña" />
+
+                        <div class="row text-danger d-@mensaje">
+                            <label class="fw-bold">Usuario o contraseña incorrecta</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="row text-end">
+                        <button class="btn btn-success" @onclick="Acceder">Acceder</button>
+                       
+                    </div>
+                    <button class="btn btn-primary" @onclick="MostrarFormularioCrearUsuario">Crear Nuevo Usuario</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (mostrarFormularioCrearUsuario)
+    {
+        <div class="modal d-block">
+            <div style="width: 35rem; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);">
+                <div class="modal-content">
+                    <div class="card-header" style="background-color:  #0000FF; color: #ffffff;">
+                        
+                        <h3><strong> Crear Nuevo Usuario</strong></h3>
+                    </div>
+                    <div class="modal-content">
+                        <div class="modal-body">
+                            <label class="fw-bold">Nuevo Usuario</label>
+                            <input class="form-control" @bind="nuevoUsuario" placeholder="Ingrese un Usuario" />
+
+                            <label class="fw-bold">Contraseña</label>
+                            <input class="form-control" @bind="nuevaContrasena" placeholder="Ingrese una Contraseña" />
+
+                            <div class="row text-danger d-@mensajeCrearUsuario">
+                                <label class="fw-bold">@mensajeCrearUsuario</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <div class="row text-end">
+                            <button class="btn btn-success" @onclick="CrearUsuario">Crear</button>
+                           
+                        </div>
+                        <button class="btn btn-danger" @onclick="CancelarCreacionUsuario">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@if (Logueado == "true")
+{
+    <div class="page">
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+
+        <main>
+            <div class="top-row px-4">
+                    <button type="button" class="btn btn-outline-success" @onclick="CerrarSesion"><i class="bi bi-floppy-fill"></i> Cerrar Sesión</button>
+            </div>
+
+            <article class="content px-4">
+                @Body
+            </article>
+        </main>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+}
+
+@code {
+    private string user = "", pass = "", mensaje = "none";
+    private string nuevoUsuario = "", nuevaContrasena = "", mensajeCrearUsuario = "none";
+    private bool mostrarFormularioCrearUsuario = false;
+    private List<(string, string)> usuarios = new List<(string, string)>();
+    private string Logueado = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var storedUsuarios = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "Usuarios");
+        if (!string.IsNullOrEmpty(storedUsuarios))
+            usuarios = JsonSerializer.Deserialize<List<(string, string)>>(storedUsuarios);
+
+        var storedLogueado = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "Logueado");
+        if (!string.IsNullOrEmpty(storedLogueado))
+            Logueado = storedLogueado;
+    }
+
+    public async Task Acceder()
+    {
+        var usuario = usuarios.FirstOrDefault(u => u.Item1 == user && u.Item2 == pass);
+        if (usuario != default)
+        {
+            mensaje = "none";
+            user = "";
+            pass = "";
+
+            Logueado = "true";
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "Logueado", "true");
+        }
+        else
+        {
+            mensaje = "block";
+        }
+    }
+
+    public void MostrarFormularioCrearUsuario()
+    {
+        mostrarFormularioCrearUsuario = true;
+    }
+
+    public void CancelarCreacionUsuario()
+    {
+        mostrarFormularioCrearUsuario = false;
+        nuevoUsuario = "";
+        nuevaContrasena = "";
+        mensajeCrearUsuario = "none";
+    }
+
+    public async Task CrearUsuario()
+    {
+        if (!string.IsNullOrWhiteSpace(nuevoUsuario) && !string.IsNullOrWhiteSpace(nuevaContrasena))
+        {
+            usuarios.Add((nuevoUsuario, nuevaContrasena));
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "Usuarios", JsonSerializer.Serialize(usuarios));
+            mostrarFormularioCrearUsuario = false;
+            nuevoUsuario = "";
+            nuevaContrasena = "";
+            mensajeCrearUsuario = "none";
+        }
+        else
+        {
+            mensajeCrearUsuario = "No has ingresado los datos correspondientes";
+        }
+    }
+
+    public async Task CerrarSesion()
+    {
+        Logueado = "false";
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "Logueado", "false");
+    }
+}
